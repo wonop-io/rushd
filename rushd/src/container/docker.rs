@@ -101,7 +101,7 @@ impl DockerImage {
         };
 
         let (image_name, tag) = match &spec.build_type {
-            BuildType::PureDockerImage{ image_name_with_tag } => {
+            BuildType::PureDockerImage{ image_name_with_tag,.. } => {
                 let split = image_name_with_tag.split(":").collect::<Vec<&str>>();
                 if split.len() > 2 {
                     panic!("Image name with tag should not contain more than one colon");
@@ -205,7 +205,7 @@ impl DockerImage {
             Some(r) => format!("{}/{}", r, self.tagged_image_name()),
             None => {
                 match &self.spec.lock().unwrap().build_type {
-                    BuildType::PureDockerImage{ image_name_with_tag } => image_name_with_tag.clone(),
+                    BuildType::PureDockerImage{ image_name_with_tag,.. } => image_name_with_tag.clone(),
                     _ => self.tagged_image_name(),
                 }
             }
@@ -223,6 +223,11 @@ impl DockerImage {
 
         let task = self.clone();
         let network_name = self.network_name.clone().expect("Network name not set");
+
+        let command =                 match &self.spec.lock().unwrap().build_type {
+            BuildType::PureDockerImage{ command,.. } => command.clone(),
+            _ => None,
+        };
 
         tokio::spawn(async move { 
             let spec = task.spec.lock().unwrap().clone();
@@ -252,6 +257,10 @@ impl DockerImage {
             }
 
             args.push(task.tagged_image_name());
+            if let Some(command) = command {
+                args.push(command.clone());
+            }
+
             println!("Running docker for {}: {}", spec.component_name, args.join(" "));
             let mut child_process_result = Command::new(toolchain.docker())
                 .args(args)

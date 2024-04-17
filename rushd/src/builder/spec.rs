@@ -122,6 +122,7 @@ impl ComponentBuildSpec {
                     .as_str()
                     .unwrap()
                     .to_string(),
+                command: yaml_section.get("command").map(|v| v.as_str().unwrap().to_string()),
             },
             "K8sOnly" => BuildType::PureKubernetes,
             "K8sInstall" => BuildType::KubernetesInstallation {
