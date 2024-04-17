@@ -19,7 +19,8 @@ pub enum BuildType {
     },
     PureDockerImage {
         image_name_with_tag: String,
-        command: Option<String>
+        command: Option<String>,
+        entrypoint: Option<String>,
     },
     PureKubernetes,
     KubernetesInstallation {

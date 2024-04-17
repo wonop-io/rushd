@@ -224,9 +224,9 @@ impl DockerImage {
         let task = self.clone();
         let network_name = self.network_name.clone().expect("Network name not set");
 
-        let command =                 match &self.spec.lock().unwrap().build_type {
-            BuildType::PureDockerImage{ command,.. } => command.clone(),
-            _ => None,
+        let (command, entrypoint) = match &self.spec.lock().unwrap().build_type {
+            BuildType::PureDockerImage{ command, entrypoint , ..} => (command.clone(), entrypoint.clone()),
+            _ => (None, None),
         };
 
         tokio::spawn(async move { 
@@ -235,6 +235,10 @@ impl DockerImage {
             let _ = status_sender.send(Status::InProgress);
             let mut args = vec!["run".to_string(), "--name".to_string(), spec.component_name.clone(), "--network".to_string(), network_name];
             
+            if let Some(entrypoint) = entrypoint {
+                args.push("--entrypoint".to_string());
+                args.push(entrypoint.clone());
+            }            
             if let Some(port) = task.port {
                 if let Some(target_port) = task.target_port {
                     args.push("-p".to_string());

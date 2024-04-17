@@ -30,6 +30,7 @@ pub struct ComponentBuildSpec {
     pub k8s: Option<String>, // TODO: Refactor to k8s_dir
     pub priority: u64,
 
+
     // Set after loading
     pub config: Arc<Config>,
     pub services: Option<Arc<ServicesSpec>>,
@@ -123,6 +124,7 @@ impl ComponentBuildSpec {
                     .unwrap()
                     .to_string(),
                 command: yaml_section.get("command").map(|v| v.as_str().unwrap().to_string()),
+                entrypoint: yaml_section.get("entrypoint").map(|v| v.as_str().unwrap().to_string()),
             },
             "K8sOnly" => BuildType::PureKubernetes,
             "K8sInstall" => BuildType::KubernetesInstallation {
