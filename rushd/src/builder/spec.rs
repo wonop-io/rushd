@@ -23,6 +23,7 @@ pub struct ComponentBuildSpec {
     pub subdomain: Option<String>,
     pub artefacts: Option<std::collections::HashMap<String, String>>,
     pub artefact_output_dir: String,
+    pub docker_extra_run_args: Vec<String>,
     pub env: Option<HashMap<String, String>>,
     pub volumes: Option<HashMap<String, String>>,
     pub port: Option<u16>,
@@ -200,6 +201,15 @@ impl ComponentBuildSpec {
                 .map_or("target/rushd".to_string(), |v| {
                     v.as_str().unwrap().to_string()
                 }),
+            docker_extra_run_args: yaml_section
+                .get("docker_extra_run_args")
+                .map_or_else(|| Vec::new(), |v| {
+                    v.as_sequence()
+                     .unwrap()
+                     .iter()
+                     .map(|item| item.as_str().unwrap().to_string())
+                     .collect()
+                }),                
             env: yaml_section.get("env").map(|v| {
                 v.as_mapping()
                     .unwrap()

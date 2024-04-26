@@ -260,6 +260,10 @@ impl DockerImage {
                 }
             }
 
+            for arg in &spec.docker_extra_run_args {
+                args.push(arg.clone());
+            }            
+
             args.push(task.tagged_image_name());
             if let Some(command) = command {
                 args.push(command.clone());
@@ -370,8 +374,15 @@ impl DockerImage {
             None => panic!("Cannot launch docker image without a toolchain"),
         };        
         let formatted_label = self.spec.lock().unwrap().component_name.to_string().white().bold();
+        let extra_args = self.spec.lock().unwrap().docker_extra_run_args.clone();
+
         // TODO: Get ports
-        match run_command(formatted_label, toolchain.docker(), vec!["run", "-p", "8000:80", &self.tagged_image_name()]).await {
+        let image_name = self.tagged_image_name();
+        let mut args = vec!["run", "-p", "8000:80", &image_name];
+        for arg in &extra_args {
+            args.push(&arg);
+        }
+        match run_command(formatted_label, toolchain.docker(), args).await {
             Ok(_) => {
                 Ok(())
             }
