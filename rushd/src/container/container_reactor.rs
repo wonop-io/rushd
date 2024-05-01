@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap, sync::{mpsc::{self, Receiver}}
+    collections::{HashMap, HashSet}, sync::mpsc::{self, Receiver}
 };
 use tokio::sync::broadcast::{Sender as BroadcastSender, Receiver as BroadcastReceiver};
 use tokio::sync::broadcast;
@@ -651,14 +651,56 @@ impl ContainerReactor {
             // Clearing events
             // while watch_rx.try_recv().is_ok() {  }
             let max_label_length = self.images.iter().map(|image| image.component_name().len()).max().unwrap_or_default();
+            self.images_by_id = HashMap::new();
+            self.statuses_receivers = HashMap::new();
+            self.statuses = HashMap::new();
+            self.handles = HashMap::new();
 
-            for (image_id, image) in self.images.iter_mut().enumerate() {
+            let dependency_graph = self.images.iter().map(|image| (image.image_name().to_string(), image.depends_on().clone())).collect::<HashMap<String, Vec<String>>>();
+            
+            // Computing the deploy priority
+            // TODO: Suboptimal algorithm - can be improved
+            let mut longest_paths = HashMap::new();
+            for (name, _) in &dependency_graph {
+                let mut stack = vec![(name, 1)]; // (current node, current path length)
+                let mut visited = HashSet::new();
+                let mut max_length = 1;
+
+                while let Some((current, path_len)) = stack.pop() {
+                    visited.insert(current);
+                    max_length = max_length.max(path_len);
+
+                    if let Some(deps) = dependency_graph.get(current) {
+                        for dep in deps {
+                            if !visited.contains(dep) {
+                                stack.push((dep, path_len + 1));
+                            }
+                        }
+                    }
+                }
+
+                longest_paths.insert(name.clone(), max_length);
+            }
+
+
+            let mut jobs = self.images.iter_mut().enumerate().map(move |(id, image)| {
+                let priority = longest_paths.get(image.image_name()).cloned().unwrap_or_default();
+
+                (priority, id, image)
+            }).collect::<Vec<_>>();
+            jobs.sort_by(|a, b| a.0.cmp(&b.0)); // Sort jobs by priority in descending order
+
+            for (priory, image_id, image) in jobs {
+                println!("{}", format!("\nStarting {} with priority {}", image.image_name(), priory).white().bold());
                 let (status_sender, status_receiver) = mpsc::channel();
                 self.images_by_id.insert(image_id, image.clone());
                 self.statuses_receivers.insert(image_id, status_receiver);
                 self.statuses.insert(image.component_name(), Status::Awaiting);
                 let handle = image.launch(max_label_length, self.terminate_receiver.resubscribe(), status_sender);
                 self.handles.insert(image_id, handle);
+
+                // TODO: Hack instead of waiting for the image to declare ready
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
             }
 
             let ctrl_c = tokio::signal::ctrl_c();

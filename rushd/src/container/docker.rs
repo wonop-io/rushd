@@ -1,5 +1,5 @@
 use std::{
-    sync::{mpsc::{self, Sender}}
+    iter::Product, sync::mpsc::{self, Sender}
 };
 use tokio::sync::broadcast::{Receiver as BroadcastReceiver};
 
@@ -34,6 +34,7 @@ pub struct DockerImage {
     image_name: String,
     repo: Option<String>,
     tag: Option<String>, 
+    depends_on: Vec<String>,
 
     // Derived from Dockerfile
     exposes: Vec<String>,
@@ -50,6 +51,12 @@ pub struct DockerImage {
 
 
 impl DockerImage {
+    pub fn depends_on(&self) -> &Vec<String> {
+        &self.depends_on
+    }
+    pub fn image_name(&self) -> &str {
+        &self.image_name
+    }
     pub fn set_network_name(&mut self, network_name: String) {
         self.network_name = Some(network_name);
     }
@@ -115,10 +122,13 @@ impl DockerImage {
             _ => (format!("{}-{}", spec.product_name, spec.component_name), None),
         };
 
-
+        let product_name = spec.product_name.clone();
+        let depends_on = spec.depends_on.iter().map(move |s| 
+            format!("{}-{}", product_name, s)).collect::<Vec<String>>();
         Ok(DockerImage {
             image_name,
             repo: None, // Assuming repo is not part of ComponentBuildSpec and defaults to None
+            depends_on,
             tag,
             exposes,
             config,

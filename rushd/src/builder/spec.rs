@@ -16,6 +16,7 @@ pub struct ComponentBuildSpec {
     pub product_name: String,
     pub component_name: String,
     pub color: String,
+    pub depends_on: Vec<String>,
 
     pub build: Option<String>,
     pub watch_path: Option<String>,
@@ -171,6 +172,9 @@ impl ComponentBuildSpec {
             color: yaml_section
                 .get("color")
                 .map_or("blue".to_string(), |v| v.as_str().unwrap().to_string()),
+            depends_on: yaml_section
+                .get("depends_on")
+                .map_or(Vec::new(), |v| v.as_sequence().unwrap().iter().map(|item| item.as_str().unwrap().to_string()).collect()),
             product_name: product_name.to_string(),
             component_name: yaml_section
                 .get("component_name")
