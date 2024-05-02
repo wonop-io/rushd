@@ -364,7 +364,7 @@ impl ContainerReactor {
     }    
 
     pub async fn rollout(&mut self) -> Result<(), String> {
-        // self.build_and_push().await?;
+        self.build_and_push().await?;
         self.build_manifests().await?;
 
 
