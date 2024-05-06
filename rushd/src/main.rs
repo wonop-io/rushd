@@ -8,16 +8,65 @@ mod gitignore;
 use crate::toolchain::Platform;
 use clap::{arg, Command,Arg};
 use tokio::io;
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 use crate::container::ContainerReactor;
 use crate::utils::Directory;
 use crate::toolchain::ToolchainContext;
 use cluster::{Minikube, K8ClusterManifests};
 use colored::Colorize;
 use crate::builder::Config;
+use std::env;
+
+fn setup_environment() {
+    
+    // Set the RUSHD_ROOT environment variable
+    let binding = env::current_dir().unwrap();
+    let rushd_root = binding
+        .ancestors()
+        .find(|dir| dir.join(".git").exists())
+        .expect("Unable to find git repository amounts ancestors");
+    env::set_var("RUSHD_ROOT", rushd_root);
+
+    // Set the HOME environment variable if not already set
+    if env::var("HOME").is_err() {
+        if let Some(home) = env::var_os("USERPROFILE") {
+            env::set_var("HOME", home);
+        } else {
+            panic!("The HOME environment variable is not set.");
+        }
+    }
+    // Set the PATH environment variable
+    let home_dir = env::var_os("HOME").unwrap();
+    let cargo_bin = Path::new(&home_dir).join(".cargo/bin");
+    let current_path = env::var_os("PATH").unwrap();
+    // let new_path = env::join_paths([current_path, cargo_bin.into()].iter()).unwrap();
+    // env::set_var("PATH", new_path);
+
+    // Set toolchain environment variables for macOS ARM architecture
+    if cfg!(target_os = "macos") && cfg!(target_arch = "arm") {
+        // TODO: Toolpath should be searched for
+        let toolchain_path = "/opt/homebrew/Cellar/x86_64-unknown-linux-gnu/7.2.0/bin/";
+        env::set_var("CC", format!("{}x86_64-unknown-linux-gnu-gcc", toolchain_path));
+        env::set_var("CXX", format!("{}x86_64-unknown-linux-gnu-g++", toolchain_path));
+        env::set_var("AR", format!("{}x86_64-unknown-linux-gnu-ar", toolchain_path));
+        env::set_var("RANLIB", format!("{}x86_64-unknown-linux-gnu-ranlib", toolchain_path));
+        env::set_var("NM", format!("{}x86_64-unknown-linux-gnu-nm", toolchain_path));
+        env::set_var("STRIP", format!("{}x86_64-unknown-linux-gnu-strip", toolchain_path));
+        env::set_var("OBJDUMP", format!("{}x86_64-unknown-linux-gnu-objdump", toolchain_path));
+        env::set_var("OBJCOPY", format!("{}x86_64-unknown-linux-gnu-objcopy", toolchain_path));
+        env::set_var("LD", format!("{}x86_64-unknown-linux-gnu-ld", toolchain_path));
+    }
+
+    // Set default Docker and Kubernetes target platforms
+    env::set_var("CROSS_CONTAINER_OPTS", "--platform linux/amd64");
+    env::set_var("DOCKER_DEFAULT_PLATFORM", "linux/amd64");
+    env::set_var("K8_TARGET", "x86_64-unknown-linux-gnu");
+}
+
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
+    setup_environment();
 
     // TODO: Get the rushd root by go levels up until you find ".git" directory
     let root_dir = std::env::var("RUSHD_ROOT").unwrap();
