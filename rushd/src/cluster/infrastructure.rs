@@ -68,9 +68,15 @@ impl InfrastructureRepo {
             .filter(|path| path.is_file());
 
         for path in paths {
-            let file_name = path.file_name().unwrap();
-            let destination = target_directory.join(file_name);
-            fs::copy(&path, &destination).map_err(|e| e.to_string())?;
+            let canonical_source_directory = source_directory.canonicalize().map_err(|e| e.to_string())?;
+            let canonical_path = path.canonicalize().map_err(|e| e.to_string())?;
+            let relative_path = canonical_path.strip_prefix(canonical_source_directory).unwrap();
+            let destination = target_directory.join(relative_path);
+            if let Some(parent) = destination.parent() {
+                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+
+            fs::copy(&canonical_path, &destination).map_err(|e| e.to_string())?;
         }
 
         Ok(())
