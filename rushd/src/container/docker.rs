@@ -7,7 +7,7 @@ use colored::Colorize;
 use tokio::process::Command;
 use super::status::Status;
 use std::sync::Arc;
-use crate::toolchain::ToolchainContext;
+use crate::{toolchain::ToolchainContext, utils::DockerCrossCompileGuard};
 use crate::builder::{ComponentBuildSpec};
 use crate::utils::{handle_stream, run_command, run_command_in_window};
 use crate::builder::{BuildContext};
@@ -59,6 +59,15 @@ impl DockerImage {
     }
     pub fn set_network_name(&mut self, network_name: String) {
         self.network_name = Some(network_name);
+    }
+
+    pub fn create_cross_compile_guard(build_type: &BuildType, toolchain: &ToolchainContext) -> DockerCrossCompileGuard {
+        let target = match build_type {
+            BuildType::PureDockerImage{ .. } => toolchain.host(),
+            _ => toolchain.target()
+        };
+
+        DockerCrossCompileGuard::new(&target.to_docker_target())    
     }
 
     pub fn from_docker_spec(spec: Arc<Mutex<ComponentBuildSpec>>) -> Result<Self, String> {
@@ -241,6 +250,15 @@ impl DockerImage {
 
         tokio::spawn(async move { 
             let spec = task.spec.lock().unwrap().clone();
+            let env_guard = DockerImage::create_cross_compile_guard(&spec.build_type, &toolchain);
+            
+            let show_arch = false; // TODO: Make a config parameter
+            let formatted_label = if show_arch {
+                format!("{} [{}]", spec.component_name, env_guard.target())
+            } else {
+                format!("{}", spec.component_name)
+            };
+
             //task.clean().await;
             let _ = status_sender.send(Status::InProgress);
             let mut args = vec!["run".to_string(), "--name".to_string(), spec.component_name.clone(), "--network".to_string(), network_name];
@@ -290,7 +308,7 @@ impl DockerImage {
                 Ok(ref mut child) => {
                     let (stdout, stderr) = (child.stdout.take().unwrap(), child.stderr.take().unwrap());
 
-                    let formatted_label = format!("{:width$}", spec.component_name, width = max_label_length).color(spec.color.as_str()).bold();
+                    let formatted_label = format!("{:width$}", formatted_label, width = max_label_length).color(spec.color.as_str()).bold();
                     let (tx, rx) = mpsc::channel();
 
                     let stdout_task = tokio::spawn(handle_stream(stdout, tx.clone()));
@@ -366,6 +384,7 @@ impl DockerImage {
         };
         let component_name = self.spec.lock().unwrap().component_name.clone();
         let args = vec!["rm", &component_name];
+
         let _ = run_command("clean".white().bold(), toolchain.docker(), args.into()).await;
 
         // TODO: Remove artefacts
@@ -379,11 +398,19 @@ impl DockerImage {
     pub async fn run(&self) -> Result<(), String> {
         self.build().await?;
 
+
         let toolchain = match &self.toolchain {
             Some(toolchain) => toolchain.clone(),
             None => panic!("Cannot launch docker image without a toolchain"),
         };        
-        let formatted_label = self.spec.lock().unwrap().component_name.to_string().white().bold();
+
+        let env_guard = DockerImage::create_cross_compile_guard(&self.spec.lock().unwrap().build_type, &toolchain);
+
+        let formatted_label = format!("{} [{}]", 
+            self.spec.lock().unwrap().component_name.to_string(),
+            env_guard.target()
+        );
+        let formatted_label =formatted_label.white().bold();
         let extra_args = self.spec.lock().unwrap().docker_extra_run_args.clone();
 
         // TODO: Get ports
@@ -392,6 +419,7 @@ impl DockerImage {
         for arg in &extra_args {
             args.push(&arg);
         }
+
         match run_command(formatted_label, toolchain.docker(), args).await {
             Ok(_) => {
                 Ok(())
@@ -449,6 +477,8 @@ impl DockerImage {
         };
         let spec = self.spec.lock().unwrap().clone();
 
+
+
         let dockerfile_path = match &spec.build_type {
             BuildType::TrunkWasm{ dockerfile_path, .. } => dockerfile_path.clone(),
             BuildType::RustBinary{ dockerfile_path,.. } => dockerfile_path.clone(),
@@ -456,6 +486,9 @@ impl DockerImage {
             BuildType::Ingress{ dockerfile_path, ..} => dockerfile_path.clone(),
             _ => return Ok(())
         };
+
+
+        let _env_guard = DockerImage::create_cross_compile_guard(&self.spec.lock().unwrap().build_type, &toolchain);
 
         let dockerfile_path = std::path::Path::new(&dockerfile_path);
         let dockerfile_dir = dockerfile_path.parent().expect("Failed to get dockerfile directory");

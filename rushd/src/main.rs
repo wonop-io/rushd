@@ -57,10 +57,6 @@ fn setup_environment() {
         env::set_var("LD", format!("{}x86_64-unknown-linux-gnu-ld", toolchain_path));
     }
 
-    // Set default Docker and Kubernetes target platforms
-    env::set_var("CROSS_CONTAINER_OPTS", "--platform linux/amd64");
-    env::set_var("DOCKER_DEFAULT_PLATFORM", "linux/amd64");
-    env::set_var("K8_TARGET", "x86_64-unknown-linux-gnu");
 }
 
 
