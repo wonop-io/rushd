@@ -538,6 +538,7 @@ impl ContainerReactor {
     }
 
     pub async fn launch(&mut self) ->  Result<(), String>  {
+        
         let _ = self.create_network().await;
 
         let mut running  = true;
