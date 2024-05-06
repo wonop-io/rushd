@@ -323,7 +323,7 @@ impl DockerImage {
                         while let Ok(line) = rx.recv() {
                             let mut lines = lines_clone.lock().unwrap();
                             lines.push(line.trim_end().to_string());
-                            let clean_line = line.trim_end().replace("\x1B", "").replace("\r", "").replace("\n","");
+                            let clean_line = line.trim_end().replace("\r", "").replace("\n",""); // .replace("\x1B", "")
                             println!("{} |   {}", formatted_label_clone, clean_line);
                         }
                     });
