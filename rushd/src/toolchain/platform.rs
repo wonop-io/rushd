@@ -12,6 +12,13 @@ impl OperatingSystem {
         Self::from_str(env::consts::OS)
     }
 
+    pub fn to_docker_target(&self) -> String {
+        match self {
+            OperatingSystem::Linux => "linux".to_string(),
+            OperatingSystem::MacOS => "linux".to_string(), // The docker target for platform macos is linux since the docker image is linux
+        }
+    }
+
     pub fn from_str(s: &str) -> Self {
         match s {
             "linux" => Self::Linux,
@@ -51,6 +58,13 @@ impl ArchType {
         Self::from_str(env::consts::ARCH)
     }
 
+    pub fn to_docker_target(&self) -> String {
+        match self {
+            ArchType::X86_64 => "amd64".to_string(),
+            ArchType::AARCH64 => "arm64".to_string(),
+        }
+    }
+
     pub fn from_str(s: &str) -> Self {
         match s {
             "x86_64" => Self::X86_64,
@@ -87,6 +101,10 @@ impl Platform {
             self.arch.to_string(),
             self.os.to_string()
         )
+    }
+
+    pub fn to_docker_target(&self) -> String {
+        format!("{}/{}", self.os.to_docker_target(), self.arch.to_docker_target())
     }
 }
 

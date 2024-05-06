@@ -15,6 +15,50 @@ use tokio::io::AsyncRead;
 use colored::ColoredString;
 use std::path::Path;
 
+
+pub struct DockerCrossCompileGuard {
+    cross_container_opts: Option<String>,
+    docker_default_platform: Option<String>,
+    target: String
+}
+
+impl DockerCrossCompileGuard {
+    pub fn new(target: &str) -> Self {
+        let cross_container_opts = match env::var("CROSS_CONTAINER_OPTS") {
+            Ok(val) => Some(val),
+            Err(e) => None,
+        };
+        let docker_default_platform = match env::var("DOCKER_DEFAULT_PLATFORM") {
+            Ok(val) => Some(val),
+            Err(e) => None,
+        };
+
+        // Set default Docker and Kubernetes target platforms
+        env::set_var("CROSS_CONTAINER_OPTS", &format!("--platform {}", target));
+        env::set_var("DOCKER_DEFAULT_PLATFORM", &target);
+
+        DockerCrossCompileGuard { cross_container_opts, docker_default_platform, target: target.to_string() }
+    }
+
+    pub fn target(&self) -> &str {
+        &self.target
+    }
+}
+
+impl Drop for DockerCrossCompileGuard {
+    fn drop(&mut self) {
+        match &self.cross_container_opts {
+            Some(v) => env::set_var("CROSS_CONTAINER_OPTS", v),
+            None => env::remove_var("CROSS_CONTAINER_OPTS"),
+        }
+        match &self.docker_default_platform {
+            Some(v) => env::set_var("DOCKER_DEFAULT_PLATFORM", v),
+            None => env::remove_var("DOCKER_DEFAULT_PLATFORM"),
+        }
+    }
+}
+
+
 pub struct Directory {
     previous: PathBuf,
 }
