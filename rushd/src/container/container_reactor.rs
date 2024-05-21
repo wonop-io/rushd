@@ -257,6 +257,27 @@ impl ContainerReactor {
         Ok(())
     }
 
+    pub async fn select_kubernetes_context(&self, context: &str) -> Result<(), String> {
+        let toolchain = match &self.toolchain {
+            Some(toolchain) => toolchain,
+            None => return Err("Toolchain not found".to_string()),
+        };
+
+        let kubectl = toolchain.kubectl();
+        let command = format!("config use-context {}", context);
+
+        match run_command("Selecting Kubernetes context".white().bold(), &kubectl, vec![&command]).await {
+            Ok(_) => {
+                println!("Kubernetes context set to: {}", context);
+                Ok(())
+            },
+            Err(e) => {
+                eprintln!("Failed to set Kubernetes context: {}", e);
+                Err(e.to_string())
+            }
+        }
+    }
+
     pub async fn apply(&mut self) -> Result<(), String> {
         let toolchain = match self.toolchain.clone() {
             Some(toolchain) => toolchain,

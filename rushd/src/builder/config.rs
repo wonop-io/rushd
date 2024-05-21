@@ -52,7 +52,7 @@ impl Config {
     pub fn root_path(&self) -> &str {
         &self.root_path
     }
-
+    
     pub fn new(
         root_path: &str,
         product_name: &str,

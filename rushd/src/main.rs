@@ -12,10 +12,15 @@ use std::{path::Path, sync::Arc};
 use crate::container::ContainerReactor;
 use crate::utils::Directory;
 use crate::toolchain::ToolchainContext;
-use cluster::{Minikube, K8ClusterManifests};
+use cluster::Minikube;
 use colored::Colorize;
 use crate::builder::Config;
 use std::env;
+use std::fs::File;
+use std::io::Read;
+use serde::Deserialize;
+use std::collections::HashMap;
+
 
 fn setup_environment() {
     
@@ -60,6 +65,29 @@ fn setup_environment() {
 }
 
 
+
+#[derive(Debug, Deserialize)]
+struct RushdConfig {
+    env: HashMap<String, String>,
+}
+
+fn load_config() {
+    let config_path = "rushd.yaml";
+    let mut file = File::open(config_path).expect("Unable to open the config file");
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).expect("Unable to read the config file");
+
+    let config: RushdConfig = serde_yaml::from_str(&contents).expect("Error parsing the config file");
+
+    for (key, value) in config.env {
+        std::env::set_var(key, value);
+    }
+}
+
+
+
+
+
 #[tokio::main]
 async fn main() -> io::Result<()> {
     setup_environment();
@@ -67,8 +95,9 @@ async fn main() -> io::Result<()> {
     // TODO: Get the rushd root by go levels up until you find ".git" directory
     let root_dir = std::env::var("RUSHD_ROOT").unwrap();
     let _guard = Directory::chdir(&root_dir);
-    dotenv::dotenv().ok();    
+    load_config();
 
+    dotenv::dotenv().ok();    
     
     let matches = Command::new("rushd")
         .version("0.1.0")
@@ -243,6 +272,15 @@ async fn main() -> io::Result<()> {
             std::process::exit(0);
         }
 
+    }
+
+    // Setting the context
+    match reactor.select_kubernetes_context(config.kube_context()).await {
+        Ok(_) => (),
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
     }
 
     if let Some(matches) = matches.subcommand_matches("minikube") {
