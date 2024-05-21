@@ -264,9 +264,8 @@ impl ContainerReactor {
         };
 
         let kubectl = toolchain.kubectl();
-        let command = format!("config set-context {}", context);
 
-        match run_command("Selecting Kubernetes context".white().bold(), &kubectl, vec![&command]).await {
+        match run_command("Selecting Kubernetes context".white().bold(), &kubectl, vec!["config", "set-context", context]).await {
             Ok(_) => {
                 println!("Kubernetes context set to: {}", context);
                 Ok(())
