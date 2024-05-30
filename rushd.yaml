@@ -1,0 +1,11 @@
+env:
+  DOCKER_REGISTRY: not_set
+  DEV_CTX: not_set
+  STAGING_CTX: not_set
+  PROD_CTX: not_set
+
+  DEV_DOMAIN: "{{ product_uri }}-dev.wonop.dev"
+  STAGING_DOMAIN: "staging.{{ product_name }}"
+  PROD_DOMAIN: "{{ product_name }}"
+
+  INFRASTRUCTURE_REPOSITORY: not_set
