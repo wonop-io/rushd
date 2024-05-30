@@ -16,7 +16,7 @@ pub struct ExampleApiType {
 impl ExampleApiType {
     pub fn new(payload: &str) -> Self {
         ExampleApiType {
-            payload: message.to_string(),
+            payload: payload.to_string(),
         }
     }
 }

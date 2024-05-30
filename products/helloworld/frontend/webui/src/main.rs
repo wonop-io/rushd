@@ -1,10 +1,5 @@
 mod app;
-mod pages;
 mod routes;
-
-#[macro_use]
-extern crate lazy_static;
-
 use tracing_subscriber::fmt::format::Pretty;
 use tracing_subscriber::prelude::*;
 use tracing_web::{performance_layer, MakeWebConsoleWriter};
