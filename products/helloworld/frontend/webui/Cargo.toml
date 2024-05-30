@@ -1,0 +1,39 @@
+[package]
+name = "admin"
+version = "0.1.0"
+edition = "2021"
+description = "Template for starting a Yew project using Trunk"
+readme = "README.md"
+repository = "https://github.com/yewstack/yew-trunk-minimal-template"
+license = "MIT OR Apache-2.0"
+keywords = ["yew", "trunk"]
+categories = ["gui", "wasm", "web-programming"]
+
+[dependencies]
+yew = { workspace = true }
+web-sys = { workspace = true }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+serde = { workspace = true }
+yewdux = { workspace = true }
+serde_json = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
+yew-router = { workspace = true }
+validator = { workspace = true }
+chrono = { workspace = true }
+chrono-humanize = { workspace = true }
+gloo-console = { workspace = true }
+gloo-utils = { workspace = true }
+gloo-timers = { workspace = true }
+uuid = { workspace = true }
+tracing-web = { workspace = true }
+tracing-subscriber = { workspace = true }
+api_types = { path = "../../api/types" }
+futures = "0.3"
+reqwest-wasm = { version = "0.11", features = ["json", "stream"] }
+bytes = "1.0"
+lazy_static = "1.4.0"
+
+gloo-events = "0.2.0"
+scraper = "0.19.0"
+reqwasm = "0.5.0"
