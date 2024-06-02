@@ -225,11 +225,14 @@ impl ToolchainContext {
             .to_string();
 
         if !hash_output.status.success() || hash.is_empty() {
+            return Ok("precommit".to_string());
+            /*
             return Err(format!(
                 "Failed computing hash for directory {}: {}",
                 subdirectory_path,
                 String::from_utf8_lossy(&hash_output.stderr).to_string()
             ));
+            */
         }
 
         Ok(hash)
