@@ -606,6 +606,15 @@ impl ContainerReactor {
                             .filter(|path| !gitignore.ignores(path))
                             .collect::<Vec<_>>();
 
+                        let paths = paths.into_iter()
+                            .filter(|path| path.is_file())
+                            .collect::<Vec<_>>();
+
+                        let mut unique_paths = std::collections::HashSet::new();
+                        let paths = paths.into_iter()
+                            .filter(|path| unique_paths.insert(path.clone()))
+                            .collect::<Vec<_>>();
+
                         if !paths.is_empty() {
                             println!("{:#?}", paths);
                             return true;
