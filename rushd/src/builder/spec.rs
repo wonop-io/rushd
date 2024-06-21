@@ -61,6 +61,7 @@ impl ComponentBuildSpec {
             .unwrap()
         {
             "TrunkWasm" => BuildType::TrunkWasm {
+                context_dir: None,
                 location: yaml_section
                     .get("location")
                     .expect("location is required for TrunkWasm")
@@ -75,6 +76,9 @@ impl ComponentBuildSpec {
                     .to_string(),
             },
             "RustBinary" => BuildType::RustBinary {
+                context_dir: Some(yaml_section
+                    .get("context_dir")
+                    .map_or("../".to_string(), |v| v.as_str().unwrap().to_string())),
                 location: yaml_section
                     .get("location")
                     .expect("location is required for RustBinary")
@@ -89,6 +93,9 @@ impl ComponentBuildSpec {
                     .to_string(),
             },
             "Script" => BuildType::Script {
+                context_dir: Some(yaml_section
+                    .get("context_dir")
+                    .map_or("../".to_string(), |v| v.as_str().unwrap().to_string())),
                 location: yaml_section
                     .get("location")
                     .expect("location is required for Script")
@@ -103,6 +110,9 @@ impl ComponentBuildSpec {
                     .to_string(),
             },
             "Ingress" => BuildType::Ingress {
+                context_dir: Some(yaml_section
+                    .get("context_dir")
+                    .map_or("../".to_string(), |v| v.as_str().unwrap().to_string())),
                 components: yaml_section
                     .get("components")
                     .expect("components are required for Ingress")

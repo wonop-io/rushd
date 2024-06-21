@@ -35,6 +35,7 @@ pub struct DockerImage {
     repo: Option<String>,
     tag: Option<String>, 
     depends_on: Vec<String>,
+    context_dir: Option<String>,
 
     // Derived from Dockerfile
     exposes: Vec<String>,
@@ -74,12 +75,12 @@ impl DockerImage {
         let orig_spec = spec.clone();
         let spec = spec.lock().unwrap();
         let config = spec.config();
-        let dockerfile_path = match &spec.build_type {
-            BuildType::TrunkWasm{ dockerfile_path, .. } => Some(dockerfile_path.clone()),
-            BuildType::RustBinary{ dockerfile_path,.. } => Some(dockerfile_path.clone()),
-            BuildType::Script{ dockerfile_path,.. } => Some(dockerfile_path.clone()),
-            BuildType::Ingress{ dockerfile_path, ..} => Some(dockerfile_path.clone()),
-            _ => None        
+        let (dockerfile_path, context_dir) = match &spec.build_type {
+            BuildType::TrunkWasm{ dockerfile_path, context_dir, .. } => (Some(dockerfile_path.clone()), context_dir.clone()),
+            BuildType::RustBinary{ dockerfile_path, context_dir,.. } => (Some(dockerfile_path.clone()), context_dir.clone()),
+            BuildType::Script{ dockerfile_path, context_dir,.. } => (Some(dockerfile_path.clone()), context_dir.clone()),
+            BuildType::Ingress{ dockerfile_path, context_dir, ..} => (Some(dockerfile_path.clone()), context_dir.clone()),
+            _ => (None, None)        
         };
 
         let (port, target_port, exposes) = if let Some(dockerfile_path) = dockerfile_path {
@@ -138,6 +139,7 @@ impl DockerImage {
             image_name,
             repo: None, // Assuming repo is not part of ComponentBuildSpec and defaults to None
             depends_on,
+            context_dir,
             tag,
             exposes,
             config,
@@ -486,7 +488,10 @@ impl DockerImage {
             BuildType::Ingress{ dockerfile_path, ..} => dockerfile_path.clone(),
             _ => return Ok(())
         };
-
+        let context_dir = match &self.context_dir {
+            Some(context_dir) => context_dir.clone(),
+            None => ".".to_string(),
+        };
 
         let _env_guard = DockerImage::create_cross_compile_guard(&self.spec.lock().unwrap().build_type, &toolchain);
 
@@ -522,7 +527,7 @@ impl DockerImage {
         let _dir_raii = Directory::chpath(dockerfile_dir);
 
         let tag = self.tagged_image_name();
-        let build_command_args = vec!["build", "-t", &tag, "-f", dockerfile_name, "."];
+        let build_command_args = vec!["build", "-t", &tag, "-f", dockerfile_name, &context_dir];
         match run_command_in_window(10, "docker",toolchain.docker(), build_command_args).await {
             Ok(_) => {
                 Ok(())
