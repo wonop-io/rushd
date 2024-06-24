@@ -4,11 +4,10 @@ use crate::builder::Config;
 use crate::builder::{BuildScript, BuildType};
 use crate::container::{ServiceSpec, ServicesSpec};
 use crate::ToolchainContext;
-use core::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::Mutex;
+
+use super::Variables;
 
 #[derive(Debug, Clone)]
 pub struct ComponentBuildSpec {
@@ -35,6 +34,7 @@ pub struct ComponentBuildSpec {
 
     // Set after loading
     pub config: Arc<Config>,
+    pub variables: Arc<Variables>,
     pub services: Option<Arc<ServicesSpec>>,
     pub tagged_image_name: Option<String>,
 }
@@ -52,7 +52,7 @@ impl ComponentBuildSpec {
         self.config.clone()
     }
 
-    pub fn from_yaml(config: Arc<Config>, yaml_section: &serde_yaml::Value) -> Self {
+    pub fn from_yaml(config: Arc<Config>, variables: Arc<Variables>, yaml_section: &serde_yaml::Value) -> Self {
         let product_name = config.product_name();
         let build_type = match yaml_section
             .get("build_type")
@@ -174,38 +174,40 @@ impl ComponentBuildSpec {
             build_type,
             build: yaml_section
                 .get("build")
-                .map(|v| v.as_str().unwrap().to_string()),
+                .map(|v| Self::process_template_string(v.as_str().unwrap(), &variables)),
 
             watch_path: yaml_section
                 .get("watch")
-                .map(|v| v.as_str().unwrap().to_string()),
+                .map(|v| Self::process_template_string(v.as_str().unwrap(), &variables)),
             color: yaml_section
                 .get("color")
-                .map_or("blue".to_string(), |v| v.as_str().unwrap().to_string()),
+                .map_or("blue".to_string(), |v| Self::process_template_string(v.as_str().unwrap(), &variables)),
             depends_on: yaml_section
                 .get("depends_on")
-                .map_or(Vec::new(), |v| v.as_sequence().unwrap().iter().map(|item| item.as_str().unwrap().to_string()).collect()),
+                .map_or(Vec::new(), |v| v.as_sequence().unwrap().iter().map(|item| Self::process_template_string(item.as_str().unwrap(), &variables)).collect()),
             product_name: product_name.to_string(),
-            component_name: yaml_section
-                .get("component_name")
-                .expect("component_name is required")
-                .as_str()
-                .unwrap()
-                .to_string(),
+            component_name: Self::process_template_string(
+                yaml_section
+                    .get("component_name")
+                    .expect("component_name is required")
+                    .as_str()
+                    .unwrap(),
+                &variables
+            ),
             mount_point: yaml_section
                 .get("mount_point")
-                .map(|v| v.as_str().unwrap().to_string()),
+                .map(|v| Self::process_template_string(v.as_str().unwrap(), &variables)),
             subdomain: yaml_section
                 .get("subdomain")
-                .map(|v| v.as_str().unwrap().to_string()),
+                .map(|v| Self::process_template_string(v.as_str().unwrap(), &variables)),
             artefacts: yaml_section.get("artefacts").map(|v| {
                 v.as_mapping()
                     .unwrap()
                     .iter()
                     .map(|(k, val)| {
                         (
-                            k.as_str().unwrap().to_string(),
-                            val.as_str().unwrap().to_string(),
+                            Self::process_template_string(k.as_str().unwrap(), &variables),
+                            Self::process_template_string(val.as_str().unwrap(), &variables),
                         )
                     })
                     .collect()
@@ -213,7 +215,7 @@ impl ComponentBuildSpec {
             artefact_output_dir: yaml_section
                 .get("artefact_output_dir")
                 .map_or("target/rushd".to_string(), |v| {
-                    v.as_str().unwrap().to_string()
+                    Self::process_template_string(v.as_str().unwrap(), &variables)
                 }),
             docker_extra_run_args: yaml_section
                 .get("docker_extra_run_args")
@@ -221,7 +223,7 @@ impl ComponentBuildSpec {
                     v.as_sequence()
                      .unwrap()
                      .iter()
-                     .map(|item| item.as_str().unwrap().to_string())
+                     .map(|item| Self::process_template_string(item.as_str().unwrap(), &variables))
                      .collect()
                 }),                
             env: yaml_section.get("env").map(|v| {
@@ -229,9 +231,10 @@ impl ComponentBuildSpec {
                     .unwrap()
                     .iter()
                     .map(|(k, val)| {
+                        let v = Self::process_template_string(val.as_str().unwrap(), &variables);
                         (
-                            k.as_str().unwrap().to_string(),
-                            val.as_str().unwrap().to_string(),
+                            Self::process_template_string(k.as_str().unwrap(), &variables),
+                            v,
                         )
                     })
                     .collect()
@@ -242,27 +245,50 @@ impl ComponentBuildSpec {
                     .iter()
                     .map(|(k, val)| {
                         let absolute_path = std::path::Path::new(&cwd)
-                            .join(k.as_str().unwrap())
+                            .join(Self::process_template_string(k.as_str().unwrap(), &variables))
                             .to_str()
                             .unwrap()
                             .to_string();
-                        (absolute_path, val.as_str().unwrap().to_string())
+                        (absolute_path, Self::process_template_string(val.as_str().unwrap(), &variables))
                     })
                     .collect()
             }),
-            port: yaml_section.get("port").map(|v| v.as_u64().unwrap() as u16),
-            target_port: yaml_section
-                .get("target_port")
-                .map(|v| v.as_u64().unwrap() as u16),
+            port: yaml_section.get("port").map(|v| {
+                if let Some(port_str) = v.as_str() {
+                    let processed_str = Self::process_template_string(port_str, &variables);
+                    processed_str.parse::<u16>().expect(&format!("Could not parse {}", processed_str))
+                } else {
+                    v.as_u64().unwrap() as u16
+                }
+            }),
+            target_port: yaml_section.get("target_port").map(|v| {
+                println!("target_port: {:?}", v);
+                if let Some(target_port_str) = v.as_str() {
+                    let processed_str = Self::process_template_string(target_port_str, &variables);
+                    processed_str.parse::<u16>().expect(&format!("Could not parse {}", processed_str))
+                } else {
+                    v.as_u64().unwrap() as u16
+                }
+            }),
             k8s: yaml_section
                 .get("k8s")
-                .map(|v| v.as_str().unwrap().to_string()),
+                .map(|v| Self::process_template_string(v.as_str().unwrap(), &variables)),
             priority: yaml_section
                 .get("priority")
                 .map_or(100, |v| v.as_u64().unwrap()),
             config,
+            variables,
             services: None,
             tagged_image_name: None,
+        }
+    }
+
+    fn process_template_string(input: &str, variables: &Arc<Variables>) -> String {
+        if input.starts_with("{{") && input.ends_with("}}") {
+            let var_name = input.trim_start_matches("{{").trim_end_matches("}}").trim();
+            variables.get(var_name).expect(&format!("Variable `{}` not found", var_name)).to_string()
+        } else {
+            input.to_string()
         }
     }
 

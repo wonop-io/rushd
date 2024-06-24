@@ -23,6 +23,7 @@ use crate::utils::run_command;
 use glob::glob;
 use crate::builder::Config;
 use crate::cluster::InfrastructureRepo;
+use crate::builder::Variables;
 
 // TODO: This ought to split into a spec and a reactor
 pub struct ContainerReactor {
@@ -118,6 +119,8 @@ impl ContainerReactor {
             
         let _guard = Directory::chdir(&product_path);
 
+        let variables = Variables::new("variables.yaml", config.environment());
+
         let stack_config = match std::fs::read_to_string("stack.yaml") {
             Ok(config) => config,
             Err(e) => return Err(format!("Failed to read stack config: {}", e)),
@@ -144,7 +147,7 @@ impl ContainerReactor {
                     }
                 }
 
-                let component_spec = Arc::new(Mutex::new(ComponentBuildSpec::from_yaml(config.clone(), &yaml_section_clone)));
+                let component_spec = Arc::new(Mutex::new(ComponentBuildSpec::from_yaml(config.clone(), variables.clone(), &yaml_section_clone)));
 
                 let build_type = {
                     let (k8s, priority,build_type)=  {
