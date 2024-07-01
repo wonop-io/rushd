@@ -274,19 +274,13 @@ async fn main() -> io::Result<()> {
 
     }
 
-    // Setting the context
-    match reactor.select_kubernetes_context(config.kube_context()).await {
-        Ok(_) => (),
-        Err(e) => {
-            eprintln!("{}", e);
-            std::process::exit(1);
-        }
-    }
 
     if let Some(matches) = matches.subcommand_matches("minikube") {
         if let Some(_) = matches.subcommand_matches("start") {
             match minikube.start().await {
-                Ok(_) => (),
+                Ok(_) => {
+                    return Ok(());
+                },
                 Err(e) => {
                     eprintln!("{}", e);
                     std::process::exit(1);
@@ -295,7 +289,9 @@ async fn main() -> io::Result<()> {
         }
         if let Some(_) = matches.subcommand_matches("stop") {
             match minikube.stop().await {
-                Ok(_) => (),
+                Ok(_) => {
+                    return Ok(());
+                },
                 Err(e) => {
                     eprintln!("{}", e);
                     std::process::exit(1);
@@ -304,7 +300,9 @@ async fn main() -> io::Result<()> {
         }        
         if let Some(_) = matches.subcommand_matches("delete") {
             match minikube.delete().await {
-                Ok(_) => (),
+                Ok(_) => {
+                    return Ok(());
+                },
                 Err(e) => {
                     eprintln!("{}", e);
                     std::process::exit(1);
@@ -315,7 +313,9 @@ async fn main() -> io::Result<()> {
 
     if let Some(_) = matches.subcommand_matches("dev") {        
         match reactor.launch().await {
-            Ok(_) => (),
+            Ok(_) => {
+                return Ok(());
+            },
             Err(e) => {
                 eprintln!("{}", e);
                 std::process::exit(1);
@@ -326,7 +326,9 @@ async fn main() -> io::Result<()> {
     
     if let Some(_) = matches.subcommand_matches("build") {
         match reactor.build().await {
-            Ok(_) => (),
+            Ok(_) => {
+                return Ok(());
+            },
             Err(e) => {
                 eprintln!("{}", e);
                 std::process::exit(1);
@@ -336,7 +338,9 @@ async fn main() -> io::Result<()> {
 
     if let Some(_) = matches.subcommand_matches("push") {
         match reactor.build_and_push().await {
-            Ok(_) => (),
+            Ok(_) => {
+                return Ok(());
+            },
             Err(e) => {
                 eprintln!("{}", e);
                 std::process::exit(1);
@@ -344,10 +348,25 @@ async fn main() -> io::Result<()> {
         }
     }
 
+    // Setting the context
+    if !toolchain.has_kubectl() {
+        eprintln!("kubectl not found");
+        std::process::exit(1);
+    }
+
+    match reactor.select_kubernetes_context(config.kube_context()).await {
+        Ok(_) => (),
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+  }
 
     if let Some(_) = matches.subcommand_matches("rollout") {
         match reactor.rollout().await {
-            Ok(_) => (),
+            Ok(_) => {
+                return Ok(());
+            },
             Err(e) => {
                 eprintln!("{}", e);
                 std::process::exit(1);
@@ -355,12 +374,11 @@ async fn main() -> io::Result<()> {
         }
     }
 
-
-    // TODO: Check if the context is set correctly
-
     if let Some(_) = matches.subcommand_matches("install") {
         match reactor.install_manifests().await {
-            Ok(_) => (),
+            Ok(_) => {
+                return Ok(());
+            },
             Err(e) => {
                 eprintln!("{}", e);
                 std::process::exit(1);
@@ -370,7 +388,9 @@ async fn main() -> io::Result<()> {
     
     if let Some(_) = matches.subcommand_matches("uninstall") {
         match reactor.uninstall_manifests().await {
-            Ok(_) => (),
+            Ok(_) => {
+                return Ok(());
+            },
             Err(e) => {
                 eprintln!("{}", e);
                 std::process::exit(1);
@@ -381,7 +401,9 @@ async fn main() -> io::Result<()> {
 
     if let Some(_) = matches.subcommand_matches("deploy") {
         match reactor.deploy().await {
-            Ok(_) => (),
+            Ok(_) => {
+                return Ok(());
+            },
             Err(e) => {
                 eprintln!("{}", e);
                 std::process::exit(1);
@@ -391,7 +413,9 @@ async fn main() -> io::Result<()> {
 
     if let Some(_) = matches.subcommand_matches("apply") {
         match reactor.apply().await {
-            Ok(_) => (),
+            Ok(_) => {
+                return Ok(());
+            },
             Err(e) => {
                 eprintln!("{}", e);
                 std::process::exit(1);
@@ -401,7 +425,9 @@ async fn main() -> io::Result<()> {
 
     if let Some(_) = matches.subcommand_matches("unapply") {
         match reactor.unapply().await {
-            Ok(_) => (),
+            Ok(_) => {
+                return Ok(());
+            },
             Err(e) => {
                 eprintln!("{}", e);
                 std::process::exit(1);
